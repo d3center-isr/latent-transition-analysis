@@ -1,0 +1,319 @@
+TITLE:
+    RI-LTA Medical Certification Study
+    Baseline to Six Months
+    Transition Effect on Frequency of Cannabis Use at 12 Months
+
+DATA:
+    FILE IS medcert.dat;
+
+VARIABLE:
+    NAMES = PTID DemoEth marital HiGrade racegroup unemploy
+            Pot3mSum maxuse binpot
+            mmq1_1-mmq1_5 mmq2_1-mmq2_5 mmq3_1-mmq3_5
+            mmq4_1-mmq4_5 mmq5_1-mmq5_5 mmq6_1-mmq6_5
+            mmq7_1-mmq7_5 mmq8_1-mmq8_5 mmq9_1-mmq9_5
+            mmq10_1-mmq10_5 mmq11_1-mmq11_5 mmq12_1-mmq12_5
+            mmq13_1-mmq13_5 mmq14_1-mmq14_5 mmq15_1-mmq15_5
+            mmq16_1-mmq16_5 mmq17_1-mmq17_5 mmq18_1-mmq18_5
+            mmq19_1-mmq19_5 mmq20_1-mmq20_5 mmq21_1-mmq21_5
+            mmq22_1-mmq22_5 mmq23_1-mmq23_5 mmq24_1-mmq24_5
+            mmq25_1-mmq25_5 mmq26_1-mmq26_5 mmq27_1-mmq27_5
+            mmq28_1-mmq28_5 mmq29_1-mmq29_5 mmq30_1-mmq30_5
+            mmq31_1-mmq31_5 mmq32_1-mmq32_5 mmq33_1-mmq33_5
+            mmq34_1-mmq34_5 mmq35_1-mmq35_5 mmq36_1-mmq36_5;
+
+    USEVARIABLES = unemploy ! unemployment status as a covariate
+                   Pot3mSum ! frequency of cannabis use at 12 months as a distal outcome
+                   ! CMMQ cannabis use motives as latent class indicators at baseline
+                   mmq1_1 mmq2_1 mmq3_1 mmq7_1 mmq8_1
+                   mmq19_1 mmq20_1 mmq21_1 mmq22_1 mmq23_1 mmq24_1
+                   mmq25_1 mmq26_1 mmq27_1 mmq28_1 mmq29_1 mmq30_1
+                   mmq31_1 mmq32_1 mmq33_1 mmq34_1 mmq35_1 mmq36_1
+                   ! CMMQ cannabis use motives as latent class indicators at six months
+                   mmq1_2 mmq2_2 mmq3_2 mmq7_2 mmq8_2
+                   mmq19_2 mmq20_2 mmq21_2 mmq22_2 mmq23_2 mmq24_2
+                   mmq25_2 mmq26_2 mmq27_2 mmq28_2 mmq29_2 mmq30_2
+                   mmq31_2 mmq32_2 mmq33_2 mmq34_2 mmq35_2 mmq36_2;
+
+    ! Specify ID variable
+    IDVARIABLE = PTID;
+
+    ! Specify number of classes at two time points
+    CLASSES = c1(5) c2(5);
+
+    ! Specify dichotomous latent class indicators and/or distal outcomes
+    ! Ignore if using continuous latent class indicators and/or distal outcomes
+    CATEGORICAL = mmq1_1 mmq2_1 mmq3_1 mmq7_1 mmq8_1
+                  mmq19_1 mmq20_1 mmq21_1 mmq22_1 mmq23_1 mmq24_1
+                  mmq25_1 mmq26_1 mmq27_1 mmq28_1 mmq29_1 mmq30_1
+                  mmq31_1 mmq32_1 mmq33_1 mmq34_1 mmq35_1 mmq36_1
+                  mmq1_2 mmq2_2 mmq3_2 mmq7_2 mmq8_2
+                  mmq19_2 mmq20_2 mmq21_2 mmq22_2 mmq23_2 mmq24_2
+                  mmq25_2 mmq26_2 mmq27_2 mmq28_2 mmq29_2 mmq30_2
+                  mmq31_2 mmq32_2 mmq33_2 mmq34_2 mmq35_2 mmq36_2;
+
+    ! Specify missing value code
+    MISSING = all(9999);
+
+ANALYSIS:
+    TYPE = mixture;
+    STARTS = 3000 500;
+    PROCESSORS = 8;
+    ALGORITHM = INTEGRATION;
+    INTEGRATION = 30;
+
+MODEL:
+    %OVERALL%
+    ! Specify random intercept at two time points
+    f BY mmq1_1-mmq36_1* (p1-p23)
+    mmq1_2-mmq36_2* (p1-p23);
+    ! Fix variance of random intercept to 1, mean to 0
+    f@1; [f@0];
+
+    ! Regress latent class variable at 2nd time point on that at 1st time point
+    c2 ON c1;
+    ! Regress latent class variables at two time points on covariate
+    c1 c2 ON unemploy;
+    ! Regress distal outcome on covariate, naming the coefficient as "b"
+    Pot3mSum ON unemploy (b);
+
+    ! Transition from 1st class at 1st time point to 1st class at 2nd time point
+    %c1#1.c2#1%
+    [Pot3mSum] (t11);            ! [Pot3mSum$1] append "$1" if distal outcome is dichotomous
+    [mmq1_1$1-mmq36_1$1] (1-23); ! [mmq1_1-mmq36_1] remove "$1" if latent class indicators are continuous
+    [mmq1_2$1-mmq36_2$1] (116-138);
+    
+    ! Transition from 1st class at 1st time point to 2nd class at 2nd time point
+    %c1#1.c2#2%
+    [Pot3mSum] (t12);
+    [mmq1_1$1-mmq36_1$1] (1-23);
+    [mmq1_2$1-mmq36_2$1] (139-161);
+
+    ! Transition from 1st class at 1st time point to 3rd class at 2nd time point
+    %c1#1.c2#3%
+    [Pot3mSum] (t13);
+    [mmq1_1$1-mmq36_1$1] (1-23);
+    [mmq1_2$1-mmq36_2$1] (162-184);
+
+    ! Transition from 1st class at 1st time point to 4th class at 2nd time point
+    %c1#1.c2#4%
+    [Pot3mSum] (t14);
+    [mmq1_1$1-mmq36_1$1] (1-23);
+    [mmq1_2$1-mmq36_2$1] (185-207);
+
+    ! Transition from 1st class at 1st time point to 5th class at 2nd time point
+    %c1#1.c2#5%
+    [Pot3mSum] (t15);
+    [mmq1_1$1-mmq36_1$1] (1-23);
+    [mmq1_2$1-mmq36_2$1] (208-230);
+
+
+    ! Transition from 2nd class at 1st time point to 1st class at 2nd time point
+    %c1#2.c2#1%
+    [Pot3mSum] (t21);
+    [mmq1_1$1-mmq36_1$1] (24-46);
+    [mmq1_2$1-mmq36_2$1] (116-138);
+    
+    ! Transition from 2nd class at 1st time point to 2nd class at 2nd time point
+    %c1#2.c2#2%
+    [Pot3mSum] (t22);
+    [mmq1_1$1-mmq36_1$1] (24-46);
+    [mmq1_2$1-mmq36_2$1] (139-161);
+    
+    ! Transition from 2nd class at 1st time point to 3rd class at 2nd time point
+    %c1#2.c2#3%
+    [Pot3mSum] (t23);
+    [mmq1_1$1-mmq36_1$1] (24-46);
+    [mmq1_2$1-mmq36_2$1] (162-184);
+
+    ! Transition from 2nd class at 1st time point to 4th class at 2nd time point
+    %c1#2.c2#4%
+    [Pot3mSum] (t24);
+    [mmq1_1$1-mmq36_1$1] (24-46);
+    [mmq1_2$1-mmq36_2$1] (185-207);
+
+    ! Transition from 2nd class at 1st time point to 5th class at 2nd time point
+    %c1#2.c2#5%
+    [Pot3mSum] (t25);
+    [mmq1_1$1-mmq36_1$1] (24-46);
+    [mmq1_2$1-mmq36_2$1] (208-230);
+
+
+    ! Transition from 3rd class at 1st time point to 1st class at 2nd time point
+    %c1#3.c2#1%
+    [Pot3mSum] (t31);
+    [mmq1_1$1-mmq36_1$1] (47-69);
+    [mmq1_2$1-mmq36_2$1] (116-138);
+    
+    ! Transition from 3rd class at 1st time point to 2nd class at 2nd time point
+    %c1#3.c2#2%
+    [Pot3mSum] (t32);
+    [mmq1_1$1-mmq36_1$1] (47-69);
+    [mmq1_2$1-mmq36_2$1] (139-161);
+    
+    ! Transition from 3rd class at 1st time point to 3rd class at 2nd time point
+    %c1#3.c2#3%
+    [Pot3mSum] (t33);
+    [mmq1_1$1-mmq36_1$1] (47-69);
+    [mmq1_2$1-mmq36_2$1] (162-184);
+
+    ! Transition from 3rd class at 1st time point to 4th class at 2nd time point
+    %c1#3.c2#4%
+    [Pot3mSum] (t34);
+    [mmq1_1$1-mmq36_1$1] (47-69);
+    [mmq1_2$1-mmq36_2$1] (185-207);
+
+    ! Transition from 3rd class at 1st time point to 5th class at 2nd time point
+    %c1#3.c2#5%
+    [Pot3mSum] (t35);
+    [mmq1_1$1-mmq36_1$1] (47-69);
+    [mmq1_2$1-mmq36_2$1] (208-230);
+
+
+    ! Transition from 4th class at 1st time point to 1st class at 2nd time point
+    %c1#4.c2#1%
+    [Pot3mSum] (t41);
+    [mmq1_1$1-mmq36_1$1] (70-92);
+    [mmq1_2$1-mmq36_2$1] (116-138);
+    
+    ! Transition from 4th class at 1st time point to 2nd class at 2nd time point
+    %c1#4.c2#2%
+    [Pot3mSum] (t42);
+    [mmq1_1$1-mmq36_1$1] (70-92);
+    [mmq1_2$1-mmq36_2$1] (139-161);
+
+    ! Transition from 4th class at 1st time point to 3rd class at 2nd time point
+    %c1#4.c2#3%
+    [Pot3mSum] (t43);
+    [mmq1_1$1-mmq36_1$1] (70-92);
+    [mmq1_2$1-mmq36_2$1] (162-184);
+
+    ! Transition from 4th class at 1st time point to 4th class at 2nd time point
+    %c1#4.c2#4%
+    [Pot3mSum] (t44);
+    [mmq1_1$1-mmq36_1$1] (70-92);
+    [mmq1_2$1-mmq36_2$1] (185-207);
+
+    ! Transition from 4th class at 1st time point to 5th class at 2nd time point
+    %c1#4.c2#5%
+    [Pot3mSum] (t45);
+    [mmq1_1$1-mmq36_1$1] (70-92);
+    [mmq1_2$1-mmq36_2$1] (208-230);
+
+
+    ! Transition from 5th class at 1st time point to 1st class at 2nd time point
+    %c1#5.c2#1%
+    [Pot3mSum] (t51);
+    [mmq1_1$1-mmq36_1$1] (93-115);
+    [mmq1_2$1-mmq36_2$1] (116-138);
+    
+    ! Transition from 5th class at 1st time point to 2nd class at 2nd time point
+    %c1#5.c2#2%
+    [Pot3mSum] (t52);
+    [mmq1_1$1-mmq36_1$1] (93-115);
+    [mmq1_2$1-mmq36_2$1] (139-161);
+
+    ! Transition from 5th class at 1st time point to 3rd class at 2nd time point
+    %c1#5.c2#3%
+    [Pot3mSum] (t53);
+    [mmq1_1$1-mmq36_1$1] (93-115);
+    [mmq1_2$1-mmq36_2$1] (162-184);
+
+    ! Transition from 5th class at 1st time point to 4th class at 2nd time point
+    %c1#5.c2#4%
+    [Pot3mSum] (t54);
+    [mmq1_1$1-mmq36_1$1] (93-115);
+    [mmq1_2$1-mmq36_2$1] (185-207);
+
+    ! Transition from 5th class at 1st time point to 5th class at 2nd time point
+    %c1#5.c2#5%
+    [Pot3mSum] (t55);
+    [mmq1_1$1-mmq36_1$1] (93-115);
+    [mmq1_2$1-mmq36_2$1] (208-230);
+
+
+MODEL CONSTRAINT:
+
+    ! Compute estimated mean of distal outcome given levels of covariates
+    NEW(mm11 mm12 mm13 mm14 mm15);
+    NEW(mm21 mm22 mm23 mm24 mm25);
+    NEW(mm31 mm32 mm33 mm34 mm35);
+    NEW(mm41 mm42 mm43 mm44 mm45);
+    NEW(mm51 mm52 mm53 mm54 mm55);
+
+    ! Since unemployment status is not a significant covariate,
+    ! plug in mean 0.084 (i.e., proportion of unemployment) instead of 0/1
+    mm11 = t11 + b*0.084;
+    mm12 = t12 + b*0.084;
+    mm13 = t13 + b*0.084;
+    mm14 = t14 + b*0.084;
+    mm15 = t15 + b*0.084;
+    mm21 = t21 + b*0.084;
+    mm22 = t22 + b*0.084;
+    mm23 = t23 + b*0.084;
+    mm24 = t24 + b*0.084;
+    mm25 = t25 + b*0.084;
+    mm31 = t31 + b*0.084;
+    mm32 = t32 + b*0.084;
+    mm33 = t33 + b*0.084;
+    mm34 = t34 + b*0.084;
+    mm35 = t35 + b*0.084;
+    mm41 = t41 + b*0.084;
+    mm42 = t42 + b*0.084;
+    mm43 = t43 + b*0.084;
+    mm44 = t44 + b*0.084;
+    mm45 = t45 + b*0.084;
+    mm51 = t51 + b*0.084;
+    mm52 = t52 + b*0.084;
+    mm53 = t53 + b*0.084;
+    mm54 = t54 + b*0.084;
+    mm55 = t55 + b*0.084;
+
+    ! Difference in distal outcome b/t two transitions
+    ! c1#1, c2#2 vs. c1#1, c2#4
+    NEW(d1214);
+    d1214 = mm12 - mm14;
+
+    ! If unemployment status is a significant covariate,
+    ! the estimated mean of distal outcome for the employed is t11, t12, ...
+    ! the estimated mean of distal outcome for the unemployed is calculated as:
+    ! mm11 = t11 + b;
+    ! mm12 = t12 + b;
+    ! ...
+
+    ! If distal outcome is dichotomous,
+    ! @ the estimated probability of distal outcome given levels of covariates is calculated as:
+    ! Prob = 1 / (1 + exp(-logit))
+    ! logit = -threshold + b * unemploy
+    ! For example,
+    ! the estimated probability of distal outcome for the employed is calculated as:
+    ! p11 = 1 / (1 + exp(t11));
+    ! p12 = 1 / (1 + exp(t12));
+    ! ...
+    ! the estimated probability of distal outcome for the unemployed is calculated as:
+    ! p11 = 1 / (1 + exp(t11 - b));
+    ! p12 = 1 / (1 + exp(t12 - b));
+    ! ...
+
+    ! @ the odds ratio for effects of transitions on distal outcome is calculated as:
+    ! For example,
+    ! transition from 1st class at 1st time point to 1st class at 2nd time point (c1#1, c2#1)
+    ! vs.
+    ! transition from 1st class at 1st time point to 2nd class at 2nd time point (c1#1, c2#2)
+    ! NEW(odds11 odds12 or1112);
+    ! odds11 = p11/(1 - p11);
+    ! odds12 = p12/(1 - p12);
+    ! or1112 = odds11/odds12;
+
+SAVEDATA:
+    ! Save predicted probability of being in each class at each time point and
+    ! the most likely transition for each individual
+    FILE IS medcert.txt;
+    SAVE IS cprob;
+
+OUTPUT:
+    ! Two headings are given:
+    ! ESTIMATED CONDITIONAL PROBABILITIES FOR THE LATENT CLASS VARIABLES (transition probabilities)
+    ! ESTIMATED MARGINAL PROBABILITIES FOR THE LATENT CLASS VARIABLES
+    ! Both are EVALUATED AT THE SAMPLE MEAN FOR ALL COVARIATES
+    TECH15;
